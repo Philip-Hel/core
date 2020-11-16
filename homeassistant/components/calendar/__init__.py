@@ -16,7 +16,7 @@ from homeassistant.helpers.config_validation import (  # noqa: F401
 from homeassistant.helpers.entity import Entity
 from homeassistant.helpers.entity_component import EntityComponent
 from homeassistant.helpers.template import DATE_STR_FORMAT
-from homeassistant.util import dt
+from homeassistant.util import 
 
 # mypy: allow-untyped-defs, no-check-untyped-defs
 

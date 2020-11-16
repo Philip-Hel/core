@@ -37,6 +37,7 @@ from .const import (
     OVERDUE,
     PRIORITY,
     PROJECT_ID,
+    PROJECT_COLOUR,
     PROJECT_NAME,
     PROJECTS,
     SERVICE_NEW_TASK,
@@ -111,7 +112,7 @@ def setup_platform(hass, config, add_entities, discovery_info=None):
         # Project is an object, not a dict!
         # Because of that, we convert what we need to a dict.
         project_data = {CONF_NAME: project[NAME], CONF_ID: project[ID]}
-        project_devices.append(TodoistProjectDevice(hass, project_data, labels, api))
+        project_devices.append(TodoistProjectDevice(hass, project_data, labels, api,project[PROJECT_COLOUR]))
         # Cache the names so we can easily look up name->ID.
         project_id_lookup[project[NAME].lower()] = project[ID]
 
@@ -143,6 +144,7 @@ def setup_platform(hass, config, add_entities, discovery_info=None):
                 project,
                 labels,
                 api,
+                48,
                 project_due_date,
                 project_label_filter,
                 project_id_filter,
@@ -217,6 +219,7 @@ class TodoistProjectDevice(CalendarEventDevice):
         data,
         labels,
         token,
+        project_colour,
         latest_task_due_date=None,
         whitelisted_labels=None,
         whitelisted_projects=None,
@@ -232,7 +235,7 @@ class TodoistProjectDevice(CalendarEventDevice):
         )
         self._cal_data = {}
         self._name = data[CONF_NAME]
-
+        self._project_colour = project_colour
     @property
     def event(self):
         """Return the next upcoming event."""
@@ -260,14 +263,16 @@ class TodoistProjectDevice(CalendarEventDevice):
         """Return the device state attributes."""
         if self.data.event is None:
             # No tasks, we don't REALLY need to show anything.
-            return None
-
+            return {
+                PROJECT_COLOUR: self._project_colour,
+            }
         return {
             DUE_TODAY: self.data.event[DUE_TODAY],
             OVERDUE: self.data.event[OVERDUE],
             ALL_TASKS: self._cal_data[ALL_TASKS],
             PRIORITY: self.data.event[PRIORITY],
             LABELS: self.data.event[LABELS],
+            PROJECT_COLOUR: self._project_colour,
         }
 
 

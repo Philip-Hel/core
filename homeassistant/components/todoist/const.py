@@ -61,6 +61,8 @@ OVERDUE = "overdue"
 # Todoist API: Get a task's priority
 # Service Call: What is this task's priority?
 PRIORITY = "priority"
+# Attribute: What is the colour id for the project?
+PROJECT_COLOUR = "color"
 # Todoist API: Look up the Project ID a Task belongs to
 PROJECT_ID = "project_id"
 # Service Call: What Project do you want a Task added to?
