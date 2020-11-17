@@ -57,6 +57,10 @@ LABELS = "labels"
 NAME = "name"
 # Attribute: Is this task overdue?
 OVERDUE = "overdue"
+# Todoist API: Get a project's parent id if available
+PARENT_ID="parent_id"
+# Attribute: What is this project's parents?
+PARENT_SUMMARY="parent_summary"
 # Attribute: What is this task's priority?
 # Todoist API: Get a task's priority
 # Service Call: What is this task's priority?

@@ -36,6 +36,8 @@ from .const import (
     NAME,
     OVERDUE,
     PRIORITY,
+    PARENT_ID,
+    PARENT_SUMMARY,
     PROJECT_ID,
     PROJECT_COLOUR,
     PROJECT_NAME,
@@ -95,6 +97,10 @@ def setup_platform(hass, config, add_entities, discovery_info=None):
     # Look up IDs based on (lowercase) names.
     project_id_lookup = {}
     label_id_lookup = {}
+    
+#   for recuresive lookup of project names we need to keep a list of items
+#   project id as key, and dict entry of ProjectName and Parentid
+    recursive_proj_name_lookup = {}
 
     api = TodoistAPI(token)
     api.sync()
@@ -111,11 +117,19 @@ def setup_platform(hass, config, add_entities, discovery_info=None):
     for project in projects:
         # Project is an object, not a dict!
         # Because of that, we convert what we need to a dict.
-        project_data = {CONF_NAME: project[NAME], CONF_ID: project[ID]}
-        project_devices.append(TodoistProjectDevice(hass, project_data, labels, api,project[PROJECT_COLOUR]))
+    #    _LOGGER.warning("todoist1 ParentID: %s", project[PARENT_ID])
+        project_data = {CONF_NAME: project[NAME], 
+                        CONF_ID: project[ID],
+                        PROJECT_COLOUR: project[PROJECT_COLOUR],
+                        PARENT_SUMMARY: calc_parent_summary(recursive_proj_name_lookup, project[PARENT_ID])
+                       }
+    #    _LOGGER.warning("todoist2 PARENT_SUMMARY: %s", project_data[PARENT_SUMMARY])
+        project_devices.append(TodoistProjectDevice(hass, project_data, labels, api) )
         # Cache the names so we can easily look up name->ID.
         project_id_lookup[project[NAME].lower()] = project[ID]
-
+        recursive_proj_name_lookup[project[ID]] = {CONF_NAME: project[NAME], PARENT_ID: project[PARENT_ID]}
+    #    _LOGGER.warning("todoist3 project key for recursive fields: %s", project[ID])    
+    #    _LOGGER.warning("todoist4 values for recursive fields: %s", recursive_proj_name_lookup[project[ID]])
     # Cache all label names
     for label in labels:
         label_id_lookup[label[NAME].lower()] = label[ID]
@@ -144,7 +158,6 @@ def setup_platform(hass, config, add_entities, discovery_info=None):
                 project,
                 labels,
                 api,
-                48,
                 project_due_date,
                 project_label_filter,
                 project_id_filter,
@@ -209,6 +222,16 @@ def _parse_due_date(data: dict) -> datetime:
         data["date"] += "Z"
     return dt.parse_datetime(data["date"])
 
+def calc_parent_summary(pProjectList, pParentID):
+    """Recursively calculates project summary"""
+    if pParentID in pProjectList:
+        retValue = calc_parent_summary(pProjectList,pProjectList[pParentID][PARENT_ID])
+        if retValue != "":
+            retValue += "➡" 
+        retValue += pProjectList[pParentID][CONF_NAME] 
+        return retValue  
+    else:
+        return ""
 
 class TodoistProjectDevice(CalendarEventDevice):
     """A device for getting the next Task from a Todoist Project."""
@@ -219,7 +242,6 @@ class TodoistProjectDevice(CalendarEventDevice):
         data,
         labels,
         token,
-        project_colour,
         latest_task_due_date=None,
         whitelisted_labels=None,
         whitelisted_projects=None,
@@ -233,9 +255,13 @@ class TodoistProjectDevice(CalendarEventDevice):
             whitelisted_labels,
             whitelisted_projects,
         )
-        self._cal_data = {}
+     #   self._cal_data = {}
         self._name = data[CONF_NAME]
-        self._project_colour = project_colour
+        self._project_colour = data[PROJECT_COLOUR]
+        self._parent_summary = data[PARENT_SUMMARY]
+      #  _LOGGER.warning("todoist5 device data[parent_summary]: %s", data[PARENT_SUMMARY])
+      #  _LOGGER.warning("todoist6 device _parent_summary: %s", self._parent_summary)
+
     @property
     def event(self):
         """Return the next upcoming event."""
@@ -250,9 +276,9 @@ class TodoistProjectDevice(CalendarEventDevice):
         """Update all Todoist Calendars."""
         self.data.update()
         # Set Todoist-specific data that can't easily be grabbed
-        self._cal_data[ALL_TASKS] = [
-            task[SUMMARY] for task in self.data.all_project_tasks
-        ]
+        # self._cal_data[ALL_TASKS] = [
+        #    task[SUMMARY] for task in self.data.all_project_tasks
+        #]
 
     async def async_get_events(self, hass, start_date, end_date):
         """Get all events in a specific time frame."""
@@ -265,14 +291,17 @@ class TodoistProjectDevice(CalendarEventDevice):
             # No tasks, we don't REALLY need to show anything.
             return {
                 PROJECT_COLOUR: self._project_colour,
+                PARENT_SUMMARY: self._parent_summary,
             }
         return {
             DUE_TODAY: self.data.event[DUE_TODAY],
             OVERDUE: self.data.event[OVERDUE],
-            ALL_TASKS: self._cal_data[ALL_TASKS],
+          #  ALL_TASKS: self._cal_data[ALL_TASKS],
+            ALL_TASKS: self.data.all_project_tasks,
             PRIORITY: self.data.event[PRIORITY],
             LABELS: self.data.event[LABELS],
             PROJECT_COLOUR: self._project_colour,
+            PARENT_SUMMARY: self._parent_summary,
         }
 
 
@@ -414,7 +443,6 @@ class TodoistProjectData:
             task[ALL_DAY] = True
             task[DUE_TODAY] = False
             task[OVERDUE] = False
-
         # Not tracked: id, comments, project_id order, indent, recurring.
         return task
 
@@ -565,13 +593,17 @@ class TodoistProjectData:
 
         # Organize the best tasks (so users can see all the tasks
         # they have, organized)
-        while project_tasks:
-            best_task = self.select_best_task(project_tasks)
-            _LOGGER.debug("Found Todoist Task: %s", best_task[SUMMARY])
-            project_tasks.remove(best_task)
-            self.all_project_tasks.append(best_task)
-
-        self.event = self.all_project_tasks[0]
+        #while project_tasks:
+        #    best_task = self.select_best_task(project_tasks)
+        #    _LOGGER.debug("Found Todoist Task: %s", best_task[SUMMARY])
+        #    project_tasks.remove(best_task)
+        #    self.all_project_tasks.append(best_task)
+        
+        #self.event = self.all_project_tasks[0]
+        
+        #PH - for now let us keep the standard ordering until we can deel with subtrees.
+        self.all_project_tasks = project_tasks  
+        self.event = self.select_best_task(project_tasks)
 
         # Convert datetime to a string again
         if self.event is not None:
