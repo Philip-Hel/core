@@ -87,7 +87,7 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
     }
 )
 
-SCAN_INTERVAL = timedelta(minutes=15)
+SCAN_INTERVAL = timedelta(minutes=1)
 
 
 def setup_platform(hass, config, add_entities, discovery_info=None):
@@ -282,6 +282,9 @@ class TodoistProjectDevice(CalendarEventDevice):
 
     async def async_get_events(self, hass, start_date, end_date):
         """Get all events in a specific time frame."""
+        update(self)
+        _LOGGER.warning("get events called!on todoist")
+        
         return await self.data.async_get_events(hass, start_date, end_date)
 
     @property
@@ -388,6 +391,7 @@ class TodoistProjectData:
         """
         task = {}
         # Fields are required to be in all returned task objects.
+        task[CONF_ID] = data[CONF_ID]
         task[SUMMARY] = data[CONTENT]
         task[COMPLETED] = data[CHECKED] == 1
         task[PRIORITY] = data[PRIORITY]
@@ -443,7 +447,10 @@ class TodoistProjectData:
             task[ALL_DAY] = True
             task[DUE_TODAY] = False
             task[OVERDUE] = False
-        # Not tracked: id, comments, project_id order, indent, recurring.
+        
+        if data[PARENT_ID] is not None:
+           task[PARENT_ID] = data[PARENT_ID] 
+        # Not comments, project_id order, indent, recurring.
         return task
 
     @staticmethod
