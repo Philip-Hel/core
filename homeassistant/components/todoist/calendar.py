@@ -433,7 +433,7 @@ class TodoistProjectData:
                 # Set end time to the current time plus 1 hour.
                 # We're pretty much guaranteed to update within that 1 hour,
                 # so it should be fine.
-                task[END] = task[START] + timedelta(hours=1)
+                #PH - I want the end date to remain as per the time provided. task[END] = task[START] + timedelta(hours=1)
             else:
                 task[OVERDUE] = False
         else:
