@@ -30,6 +30,10 @@ from .const import (
     DUE_DATE_STRING,
     DUE_DATE_VALID_LANGS,
     DUE_TODAY,
+    DUE_TOMORROW,
+    DUE_NEXT7DAYS,
+    TASK_DUE_FORMATTED,
+    RECURRING_STATE,
     END,
     ID,
     LABELS,
@@ -46,6 +50,8 @@ from .const import (
     START,
     SUMMARY,
     TASKS,
+    DAYSWITCHER,
+    MONTHSWITCHER,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -233,6 +239,25 @@ def calc_parent_summary(pProjectList, pParentID):
     else:
         return ""
 
+def parse_addtime_tosummary(pAllday, pTime: datetime):
+    """check if time is needed and returns formatted"""
+    if pAllday: 
+        return ""
+    retValue = " "    
+    # add hours
+    amPM = ""
+    if pTime.time().hour > 12 :
+        retValue += str(pTime.time().hour - 12)
+        amPM = "PM"
+    else :
+        retValue += str(pTime.time().hour)
+        amPM = "AM"
+    # add and format minutes if not 0
+    if pTime.time().minute > 0 : 
+        retValue += ":"+ format(pTime.time().minute, '02') + " "
+    # now handle AM/PM
+    retValue += amPM
+    return retValue
 class TodoistProjectDevice(CalendarEventDevice):
     """A device for getting the next Task from a Todoist Project."""
 
@@ -396,7 +421,8 @@ class TodoistProjectData:
         task[COMPLETED] = data[CHECKED] == 1
         task[PRIORITY] = data[PRIORITY]
         task[DESCRIPTION] = "https://todoist.com/showTask?id={}".format(data[ID])
-
+        if data[PARENT_ID] is not None:
+            task[PARENT_ID] = data[PARENT_ID]
         # All task Labels (optional parameter).
         task[LABELS] = [
             label[NAME].lower() for label in self._labels if label[ID] in data[LABELS]
@@ -416,8 +442,16 @@ class TodoistProjectData:
         # Generally speaking, that means right now.
         task[START] = dt.utcnow()
         if data[DUE] is not None:
-            task[END] = _parse_due_date(data[DUE])
+            dueDateDict = data[DUE]
+            # add task recurring
+            task[RECURRING_STATE] = dueDateDict[RECURRING_STATE]
 
+            # check if all day event or if we have a valid time
+            if len(dueDateDict["date"]) == 10:
+                task[ALL_DAY] = True
+            else :
+                task[ALL_DAY] = False
+            task[END] = _parse_due_date(dueDateDict)
             if self._latest_due_date is not None and (
                 task[END] > self._latest_due_date
             ):
@@ -426,16 +460,49 @@ class TodoistProjectData:
                 return None
 
             task[DUE_TODAY] = task[END].date() == datetime.today().date()
-
+            task[DUE_TOMORROW] = task[END].date() == (datetime.today() + timedelta(days=1)).date()
+            task[DUE_NEXT7DAYS] = ((task[END].date() > datetime.today().date()) and (task[END].date() <= (datetime.today() + timedelta(days=7)).date()))
+            
             # Special case: Task is overdue.
             if task[END] <= task[START]:
                 task[OVERDUE] = True
                 # Set end time to the current time plus 1 hour.
                 # We're pretty much guaranteed to update within that 1 hour,
                 # so it should be fine.
-                #PH - I want the end date to remain as per the time provided. task[END] = task[START] + timedelta(hours=1)
+                #PH - I want the end date to remain task[END] = task[START] + timedelta(hours=1)
             else:
                 task[OVERDUE] = False
+
+            #case to create formatted text
+            if task[OVERDUE]:
+                if task[DUE_TODAY]:
+                    #if show today but as red if we missed it today
+                    task[TASK_DUE_FORMATTED] = "Today" + parse_addtime_tosummary(task[ALL_DAY],task[END])
+                elif (task[END].date() == (datetime.today() - timedelta(days=1)).date()):
+                    #if yesterday
+                    task[TASK_DUE_FORMATTED] = "Yesterday" + parse_addtime_tosummary(task[ALL_DAY],task[END])
+                else:
+                     #if less than a year old then display short date otherwise display iso date
+                    formattedDate = ""
+                    if (task[END].date() >= (datetime.today() - timedelta(days=365)).date()) :
+                        formattedDate = str(task[END].day) + " " + MONTHSWITCHER.get(task[END].month)
+                    else: 
+                        formattedDate = task[END].date().isoformat()
+                    task[TASK_DUE_FORMATTED] = formattedDate + parse_addtime_tosummary(task[ALL_DAY],task[END])
+            elif task[DUE_TODAY]:
+                task[TASK_DUE_FORMATTED] = "Today" + parse_addtime_tosummary(task[ALL_DAY],task[END])
+            elif task[DUE_TOMORROW]:
+                task[TASK_DUE_FORMATTED] = "Tomorrow" + parse_addtime_tosummary(task[ALL_DAY],task[END])
+            elif task[DUE_NEXT7DAYS]:
+                task[TASK_DUE_FORMATTED] = DAYSWITCHER.get(task[END].isoweekday()) + parse_addtime_tosummary(task[ALL_DAY],task[END])
+            else:
+                #default future if less than a year old then display short date otherwise display iso date
+                formattedDatefuture = ""
+                if (task[END].date() <= (datetime.today() + timedelta(days=365)).date()) :
+                    formattedDatefuture = str(task[END].day) + " " + MONTHSWITCHER.get(task[END].month)
+                else: 
+                    formattedDatefuture = task[END].date().isoformat()
+                task[TASK_DUE_FORMATTED] = formattedDatefuture + parse_addtime_tosummary(task[ALL_DAY],task[END])
         else:
             # If we ask for everything due before a certain date, don't count
             # things which have no due dates.
@@ -444,13 +511,12 @@ class TodoistProjectData:
 
             # Define values for tasks without due dates
             task[END] = None
+            task[DUE_DATE] = None
             task[ALL_DAY] = True
             task[DUE_TODAY] = False
             task[OVERDUE] = False
-        
-        if data[PARENT_ID] is not None:
-           task[PARENT_ID] = data[PARENT_ID] 
-        # Not comments, project_id order, indent, recurring.
+            task[RECURRING_STATE] = False
+
         return task
 
     @staticmethod
@@ -610,7 +676,7 @@ class TodoistProjectData:
         
         #PH - for now let us keep the standard ordering until we can deel with subtrees.
         self.all_project_tasks = project_tasks  
-        self.event = self.select_best_task(project_tasks)
+        self.event = project_tasks[-1] #//self.select_best_task(project_tasks)
 
         # Convert datetime to a string again
         if self.event is not None:

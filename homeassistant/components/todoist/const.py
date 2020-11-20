@@ -46,6 +46,12 @@ DUE_DATE_VALID_LANGS = [
 DUE_DATE = "due_date"
 # Attribute: Is this task due today?
 DUE_TODAY = "due_today"
+# Attribute: Is this task due tomorrow?
+DUE_TOMORROW = "due_tomorrow"
+# Attribute: Was this task due yesterday?
+DUE_NEXT7DAYS = "due_next7days"
+# Attribute: Was this task due yesterday?
+TASK_DUE_FORMATTED = "due_formatted"
 # Calendar Platform: When a calendar event ends
 END = "end"
 # Todoist API: Look up a Project/Label/Task ID
@@ -73,6 +79,9 @@ PROJECT_ID = "project_id"
 PROJECT_NAME = "project"
 # Todoist API: Fetch all Projects
 PROJECTS = "projects"
+# Attribute: Is this a recurring task?
+# Todoist API: Get a task's recurrence
+RECURRING_STATE = "is_recurring"
 # Calendar Platform: When does a calendar event start?
 START = "start"
 # Calendar Platform: What is the next calendar event about?
@@ -83,3 +92,28 @@ TASKS = "items"
 DOMAIN = "todoist"
 
 SERVICE_NEW_TASK = "new_task"
+
+DAYSWITCHER = {
+    1: "Monday",
+    2: "Tuesday",
+    3: "Wednesday",
+    4: "Thursday",
+    5: "Friday",
+    6: "Saturday",
+    7: "Sunday"
+}
+
+MONTHSWITCHER = {
+    1: "Jan",
+    2: "Feb",
+    3: "Mar",
+    4: "Apr",
+    5: "May",
+    6: "Jun",
+    7: "Jul",
+    8: "Aug",
+    9: "Sep",
+    10: "Oct",
+    11: "Nov",
+    12: "Dec"
+}
