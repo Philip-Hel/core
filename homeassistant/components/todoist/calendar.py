@@ -464,7 +464,7 @@ class TodoistProjectData:
             task[DUE_NEXT7DAYS] = ((task[END].date() > datetime.today().date()) and (task[END].date() <= (datetime.today() + timedelta(days=7)).date()))
             
             # Special case: Task is overdue.
-            if task[END] <= task[START]:
+            if (task[END] <= task[START]) and (task[ALL_DAY] == False):
                 task[OVERDUE] = True
                 # Set end time to the current time plus 1 hour.
                 # We're pretty much guaranteed to update within that 1 hour,
