@@ -307,7 +307,7 @@ class TodoistProjectDevice(CalendarEventDevice):
 
     async def async_get_events(self, hass, start_date, end_date):
         """Get all events in a specific time frame."""
-        update(self)
+        self.update(self)
         # _LOGGER.warning("get events called!on todoist")
         
         return await self.data.async_get_events(hass, start_date, end_date)
