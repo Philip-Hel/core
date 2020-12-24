@@ -75,6 +75,8 @@ PRIORITY = "priority"
 PROJECT_COLOUR = "color"
 # Todoist API: Look up the Project ID a Task belongs to
 PROJECT_ID = "project_id"
+# Todoist API: Look up the Project Child Order a Project belongs to
+PROJECT_ORDER = "child_order"
 # Service Call: What Project do you want a Task added to?
 PROJECT_NAME = "project"
 # Todoist API: Fetch all Projects

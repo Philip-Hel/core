@@ -45,6 +45,7 @@ from .const import (
     PROJECT_ID,
     PROJECT_COLOUR,
     PROJECT_NAME,
+    PROJECT_ORDER,
     PROJECTS,
     SERVICE_NEW_TASK,
     START,
@@ -110,14 +111,18 @@ def setup_platform(hass, config, add_entities, discovery_info=None):
 
     api = TodoistAPI(token)
     api.sync()
-
     # Setup devices:
     # Grab all projects.
-    projects = api.state[PROJECTS]
-
+    #_LOGGER.warning("Projects before: %s", len(api.state[PROJECTS]))
+    #_LOGGER.warning("All Projects before: %s", api.state[PROJECTS])
+    
+    projects = sort_projects(api.state[PROJECTS], None)
+    #projects = api.state[PROJECTS]
+    #_LOGGER.warning("Projects after: %s", len(projects))
+    #_LOGGER.warning("All Projects after: %s", projects)
     # Grab all labels
     labels = api.state[LABELS]
-
+    
     # Add all Todoist-defined projects.
     project_devices = []
     for project in projects:
@@ -127,7 +132,7 @@ def setup_platform(hass, config, add_entities, discovery_info=None):
         project_data = {CONF_NAME: project[NAME], 
                         CONF_ID: project[ID],
                         PROJECT_COLOUR: project[PROJECT_COLOUR],
-                        PARENT_SUMMARY: calc_parent_summary(recursive_proj_name_lookup, project[PARENT_ID])
+                        PARENT_SUMMARY: calc_parent_summary(recursive_proj_name_lookup, project[PARENT_ID]),
                        }
     #    _LOGGER.warning("todoist2 PARENT_SUMMARY: %s", project_data[PARENT_SUMMARY])
         project_devices.append(TodoistProjectDevice(hass, project_data, labels, api) )
@@ -217,6 +222,28 @@ def setup_platform(hass, config, add_entities, discovery_info=None):
         DOMAIN, SERVICE_NEW_TASK, handle_new_task, schema=NEW_TASK_SERVICE_SCHEMA
     )
 
+def sort_projects(pProjects, pParentID):
+    """Recursively sort projects to create tree structure with correct position."""
+    retlist = []
+    for project in pProjects:
+        if project[PARENT_ID] == pParentID:
+            #_LOGGER.warning("pprojects length in sort loop: %s", len(pProjects))
+            #_LOGGER.warning("current project before remove: %s", project)
+            projlist = []
+            projlist.append(project)
+            #pProjects.remove(project)
+            #_LOGGER.warning("current project after remove: %s", project)
+
+            projlist.extend(sort_projects(pProjects, project[ID]))
+            # find position to projlist into retlist.
+            #_LOGGER.warning("Projlist tree: %s", projlist)
+            i = 0
+            for retproject in retlist:
+                if (retproject[PARENT_ID]  == pParentID) and (retproject[PROJECT_ORDER] > project[PROJECT_ORDER]):
+                    break    
+                i += 1
+            retlist[i:i] = projlist
+    return retlist
 
 def _parse_due_date(data: dict) -> datetime:
     """Parse the due date dict into a datetime object."""
